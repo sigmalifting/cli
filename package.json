@@ -1,0 +1,30 @@
+{
+  "name": "@sigmalifting/agent-cli",
+  "version": "0.0.0-local.0",
+  "private": true,
+  "description": "Local-only SigmaLifting bundle CLI for coding-agent workflows.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./index.js",
+  "bin": {
+    "sigmalifting-cli": "./bin/sigmalifting-cli.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "index.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "doctor": "node ./bin/sigmalifting-cli.js doctor --compact",
+    "smoke": "node ./bin/sigmalifting-cli.js help --compact && node ./bin/sigmalifting-cli.js doctor --compact"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "zod": "^3.25.64"
+  }
+}
