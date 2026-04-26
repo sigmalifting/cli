@@ -4,6 +4,12 @@ Command-line tools for creating, validating, editing, storing, inspecting, and e
 
 This CLI is intentionally isolated from the app runtime. It operates on JSON bundle contracts, not on Realm, Expo APIs, or app services.
 
+## Agent Skill
+
+Companion agent skill:
+
+- [`sigmalifting-cli`](https://github.com/sigmalifting/skills/tree/main/sigmalifting-cli)
+
 ## Why This Exists
 
 Plain text is fine for explaining a training plan. It starts to fail when the plan needs to be used. If you run a program for a few weeks, your actual weights, reps, RPEs, missed sets, notes, and adjustments are now mixed with the original prescription. Sharing that as text means somebody else has to manually clean out your history before they can put in their own numbers.
@@ -262,12 +268,6 @@ sigmalifting-cli process update-set \
 ```
 
 File-based workflows still work. If `--out` is supplied, the CLI writes that file in addition to saving the bundle in the local JSON store.
-
-## Agent Skill
-
-The CLI is the executable engine. The public skills repository is the canonical agent-facing protocol source. Keep skill content in the skills repo to avoid drift between npm package contents and agent instructions.
-
-After installing the CLI, point your coding agent at the separate `sigmalifting-cli` skill folder from the public skills repository.
 
 ## Data Model
 
