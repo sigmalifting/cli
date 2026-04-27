@@ -7,6 +7,7 @@ import {
   addCustomLiftCommand,
   addDayCommand,
   addExerciseCommand,
+  addSetGroupCommand,
   copyBlockCommand,
   copyDayCommand,
   copyExerciseCommand,
@@ -18,12 +19,24 @@ import {
   deleteCustomLiftCommand,
   deleteDayCommand,
   deleteExerciseCommand,
+  deleteSetGroupCommand,
   getExerciseRecordingCommand,
   moveExerciseCommand,
   normalizeProcessBundle,
   normalizeProgramBundle,
   renameCustomLiftCommand,
   renameDayCommand,
+  setBackoffSourceCommand,
+  setBackoffTypeCommand,
+  setExerciseAnchorCommand,
+  setExerciseDeloadCommand,
+  setFatigueDropTypeCommand,
+  setProcessOneRmCommand,
+  setSetGroupVariableCommand,
+  setWeekValueCommand,
+  setWeightModelCommand,
+  toggleBackoffCommand,
+  toggleFatigueDropCommand,
   updateBlockCommand,
   updateExerciseCommand,
   updateProcessCommand,
@@ -87,6 +100,18 @@ const PROGRAM_SUBCOMMANDS = [
   "update-schedule",
   "add-exercise",
   "update-exercise",
+  "set-anchor",
+  "set-deload",
+  "add-set-group",
+  "delete-set-group",
+  "set-variable-parameter",
+  "set-week-value",
+  "toggle-backoff",
+  "set-backoff-source",
+  "set-backoff-type",
+  "toggle-fatigue-drop",
+  "set-fatigue-drop-type",
+  "set-weight-model",
   "delete-exercise",
   "move-exercise",
   "copy-exercise",
@@ -103,6 +128,7 @@ const PROCESS_SUBCOMMANDS = [
   "update",
   "update-config",
   "update-one-rm",
+  "set-one-rm",
   "update-config-and-one-rm",
   "update-set",
   "update-note",
@@ -145,6 +171,18 @@ Program commands:
   update-schedule --file <program.json>|--program-id <id> --block-id <id> --data '["dayA","","",...]'
   add-exercise --file <program.json>|--program-id <id> --block-id <id> --day-id <id> --data '{...}'
   update-exercise --file <program.json>|--program-id <id> --exercise-id <id> --data '{...}'
+  set-anchor --file <program.json>|--program-id <id> --exercise-id <id> --enabled <true|false> [--lift-type squat] [--ratio 1]
+  set-deload --file <program.json>|--program-id <id> --exercise-id <id> --enabled <true|false> [--percentage 85]
+  add-set-group --file <program.json>|--program-id <id> --exercise-id <id>
+  delete-set-group --file <program.json>|--program-id <id> --exercise-id <id> --group-id <id>
+  set-variable-parameter --file <program.json>|--program-id <id> --exercise-id <id> --group-id <id> --variable-parameter <weight|reps|rpe>
+  set-week-value --file <program.json>|--program-id <id> --exercise-id <id> --group-id <id> --week-index <n> --field <field> [--sub-field <field>] --value <value>
+  toggle-backoff --file <program.json>|--program-id <id> --exercise-id <id> --group-id <id> --enabled <true|false>
+  set-backoff-source --file <program.json>|--program-id <id> --exercise-id <id> --group-id <id> --source-group-id <id>
+  set-backoff-type --file <program.json>|--program-id <id> --exercise-id <id> --group-id <id> --type <%_of_weight|target_rpe|"">
+  toggle-fatigue-drop --file <program.json>|--program-id <id> --exercise-id <id> --group-id <id> --enabled <true|false>
+  set-fatigue-drop-type --file <program.json>|--program-id <id> --exercise-id <id> --group-id <id> --type <%_of_weight|target_rpe|"">
+  set-weight-model --file <program.json>|--program-id <id> --exercise-id <id> --group-id <id> --mode <percentage|mixed>
   delete-exercise --file <program.json>|--program-id <id> --block-id <id> --day-id <id> --exercise-id <id>
   move-exercise --file <program.json>|--program-id <id> --block-id <id> --day-id <id> --exercise-id <id> --direction <up|down|left|right>
   copy-exercise --file <program.json>|--program-id <id> --block-id <id> --day-id <id> --exercise-id <id>
@@ -161,6 +199,7 @@ Process commands:
   update --file <process.json>|--process-id <id> --data '{...}'
   update-config --file <process.json>|--process-id <id> --data '{...}'
   update-one-rm --file <process.json>|--process-id <id> --data '{...}'
+  set-one-rm --file <process.json>|--process-id <id> --lift <lift> --value <number> [--block-index <n>]
   update-config-and-one-rm --file <process.json>|--process-id <id> --config '{...}' --one-rm '{...}'
   update-set --file <process.json>|--process-id <id> --exercise-id <id> --week-index <n> --set-index <n> --data '{...}'
   update-note --file <process.json>|--process-id <id> --exercise-id <id> --week-index <n> --note "..."
@@ -188,6 +227,7 @@ Notes:
   --file, --data-file, and --out accept local paths and file:// URLs in Node
   Program and process bundle results are stored as local JSON by default
   Set SIGMALIFTING_HOME to override the local storage root
+  Agents should treat stored JSON as internal storage and mutate bundles through CLI commands
 `;
 
 const parseArgs = (argv) => {
@@ -299,6 +339,25 @@ const getProcessIdFlag = (flags) =>
       ? flags.id
       : null;
 
+const parseBooleanFlag = (value, flagName) => {
+  if (value === true) {
+    return true;
+  }
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["true", "1", "yes", "on"].includes(normalized)) {
+      return true;
+    }
+    if (["false", "0", "no", "off"].includes(normalized)) {
+      return false;
+    }
+  }
+  throw new Error(`--${flagName} must be true or false`);
+};
+
 const readProgramBundle = async (flags, stdinText, storeOptions) => {
   const programId = getProgramIdFlag(flags);
   if (programId) {
@@ -371,6 +430,10 @@ const buildHelpPayload = () => ({
     out: "Write the resulting bundle or workbook to a file path or file:// URL.",
     exercise_id:
       "Select an exercise for exercise-detail, recording-detail, get-recording, update-set, and update-note.",
+    group_id:
+      "Select a set group for exercise progression commands such as set-week-value and toggle-backoff.",
+    week_index:
+      "Zero-based week index for program progression and process recording commands.",
     compact: "Print compact JSON instead of pretty JSON.",
     raw: "For render, print raw text directly instead of JSON.",
     store_root:
@@ -514,6 +577,98 @@ const handleProgram = async (subcommand, flags, stdinText, storeOptions) => {
         flags["exercise-id"],
         await readPayload(flags, "data", stdinText)
       );
+    case "set-anchor":
+      return setExerciseAnchorCommand(
+        await readProgramBundle(flags, stdinText, storeOptions),
+        flags["exercise-id"],
+        {
+          enabled: parseBooleanFlag(flags.enabled, "enabled"),
+          liftType:
+            typeof flags["lift-type"] === "string"
+              ? flags["lift-type"]
+              : undefined,
+          ratio: flags.ratio,
+        }
+      );
+    case "set-deload":
+      return setExerciseDeloadCommand(
+        await readProgramBundle(flags, stdinText, storeOptions),
+        flags["exercise-id"],
+        {
+          enabled: parseBooleanFlag(flags.enabled, "enabled"),
+          percentage: flags.percentage,
+        }
+      );
+    case "add-set-group":
+      return addSetGroupCommand(
+        await readProgramBundle(flags, stdinText, storeOptions),
+        flags["exercise-id"]
+      );
+    case "delete-set-group":
+      return deleteSetGroupCommand(
+        await readProgramBundle(flags, stdinText, storeOptions),
+        flags["exercise-id"],
+        flags["group-id"]
+      );
+    case "set-variable-parameter":
+      return setSetGroupVariableCommand(
+        await readProgramBundle(flags, stdinText, storeOptions),
+        flags["exercise-id"],
+        flags["group-id"],
+        flags["variable-parameter"]
+      );
+    case "set-week-value":
+      return setWeekValueCommand(
+        await readProgramBundle(flags, stdinText, storeOptions),
+        flags["exercise-id"],
+        flags["group-id"],
+        Number(flags["week-index"]),
+        flags.field,
+        flags.value,
+        flags["sub-field"]
+      );
+    case "toggle-backoff":
+      return toggleBackoffCommand(
+        await readProgramBundle(flags, stdinText, storeOptions),
+        flags["exercise-id"],
+        flags["group-id"],
+        parseBooleanFlag(flags.enabled, "enabled")
+      );
+    case "set-backoff-source":
+      return setBackoffSourceCommand(
+        await readProgramBundle(flags, stdinText, storeOptions),
+        flags["exercise-id"],
+        flags["group-id"],
+        flags["source-group-id"]
+      );
+    case "set-backoff-type":
+      return setBackoffTypeCommand(
+        await readProgramBundle(flags, stdinText, storeOptions),
+        flags["exercise-id"],
+        flags["group-id"],
+        flags.type
+      );
+    case "toggle-fatigue-drop":
+      return toggleFatigueDropCommand(
+        await readProgramBundle(flags, stdinText, storeOptions),
+        flags["exercise-id"],
+        flags["group-id"],
+        parseBooleanFlag(flags.enabled, "enabled")
+      );
+    case "set-fatigue-drop-type":
+      return setFatigueDropTypeCommand(
+        await readProgramBundle(flags, stdinText, storeOptions),
+        flags["exercise-id"],
+        flags["group-id"],
+        flags.type
+      );
+    case "set-weight-model":
+      return setWeightModelCommand(
+        await readProgramBundle(flags, stdinText, storeOptions),
+        flags["exercise-id"],
+        flags["group-id"],
+        flags.mode
+      );
     case "delete-exercise":
       return deleteExerciseCommand(
         await readProgramBundle(flags, stdinText, storeOptions),
@@ -629,6 +784,13 @@ const handleProcess = async (subcommand, flags, stdinText, storeOptions) => {
       return updateProcessOneRmCommand(
         await readProcessBundle(flags, stdinText, storeOptions),
         await readPayload(flags, "data", stdinText)
+      );
+    case "set-one-rm":
+      return setProcessOneRmCommand(
+        await readProcessBundle(flags, stdinText, storeOptions),
+        flags.lift,
+        flags.value,
+        flags["block-index"] !== undefined ? Number(flags["block-index"]) : null
       );
     case "update-config-and-one-rm":
       return updateProcessConfigAndOneRmCommand(

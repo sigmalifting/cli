@@ -27,7 +27,9 @@ The schema also gives agents a better way to think about training structure. Ins
 - A self-contained RPE calculator surface.
 - Machine-readable JSON output for all commands, including `help` and `doctor`.
 - File input and output from local paths, `file://` URLs, and stdin where applicable.
+- A local JSON store that keeps stored process bundles aligned with stored program changes.
 - Local validation and business-logic checks included under `lib/validation`.
+- Strict `validate` results; use `normalize` explicitly when accepting CLI cleanup.
 
 ## Design Rules
 
@@ -37,6 +39,7 @@ The CLI follows these rules:
 - The CLI only knows about SigmaLifting JSON contracts.
 - The CLI must be runnable in plain Node.
 - The CLI must not depend on Realm or app storage choices.
+- Store cascades are limited to CLI-managed JSON files, never live app databases.
 - When developed inside an app repository, app builds should ignore this tool.
 
 This means the CLI is best thought of as a bundle tool, not an app admin tool.
@@ -83,6 +86,18 @@ Program commands:
 - `update-schedule`
 - `add-exercise`
 - `update-exercise`
+- `set-anchor`
+- `set-deload`
+- `add-set-group`
+- `delete-set-group`
+- `set-variable-parameter`
+- `set-week-value`
+- `toggle-backoff`
+- `set-backoff-source`
+- `set-backoff-type`
+- `toggle-fatigue-drop`
+- `set-fatigue-drop-type`
+- `set-weight-model`
 - `delete-exercise`
 - `move-exercise`
 - `copy-exercise`
@@ -100,6 +115,7 @@ Process commands:
 - `update`
 - `update-config`
 - `update-one-rm`
+- `set-one-rm`
 - `update-config-and-one-rm`
 - `update-set`
 - `update-note`
