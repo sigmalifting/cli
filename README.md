@@ -201,15 +201,6 @@ npm install -g .
 sigmalifting-cli doctor --compact
 ```
 
-Build and install a local tarball:
-
-```bash
-mkdir -p ../sandbox/cli-pack
-npm pack --pack-destination ../sandbox/cli-pack
-npm install -g ../sandbox/cli-pack/sigmalifting-agent-cli-0.0.0-local.0.tgz
-sigmalifting-cli help --compact
-```
-
 The CLI package is Apache-2.0 licensed and distributed from GitHub.
 
 For coding agents, point the agent at the installed executable or call it by absolute path:
